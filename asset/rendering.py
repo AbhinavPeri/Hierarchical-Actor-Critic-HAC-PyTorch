@@ -11,7 +11,7 @@ if "Apple" in sys.version:
         os.environ['DYLD_FALLBACK_LIBRARY_PATH'] += ':/usr/lib'
         # (JDS 2016/04/15): avoid bug on Anaconda 2.3.0 / Yosemite
 
-from gym import error
+from gymnasium import error
 
 try:
     import pyglet
@@ -25,6 +25,7 @@ except ImportError as e:
 
 try:
     from pyglet.gl import *
+    from pyglet.gl.gl_compat import *
 except ImportError as e:
     raise ImportError('''
     Error occured while running `from pyglet.gl import *`

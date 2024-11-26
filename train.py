@@ -1,5 +1,6 @@
 import torch
-import gym
+import gymnasium as gym
+import gymnasium_robotics
 import asset
 import numpy as np
 from HAC import HAC
@@ -8,7 +9,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def train():
     #################### Hyperparameters ####################
-    env_name = "MountainCarContinuous-h-v1"
+    env_name = "PointMaze-h-v3"
     save_episode = 10               # keep saving every n episodes
     max_episodes = 1000             # max num of training episodes
     random_seed = 0
@@ -25,30 +26,35 @@ def train():
     """
     
     # primitive action bounds and offset
-    action_bounds = env.action_space.high[0]
-    action_offset = np.array([0.0])
+    action_high = env.action_space.high
+    action_low = env.action_space.low
+    action_bounds = (action_high - action_low) / 2
+    action_bounds = torch.FloatTensor(action_bounds.reshape(1, -1)).to(device)
+    action_offset = (action_high + action_low) / 2
     action_offset = torch.FloatTensor(action_offset.reshape(1, -1)).to(device)
-    action_clip_low = np.array([-1.0 * action_bounds])
-    action_clip_high = np.array([action_bounds])
+    action_clip_low = action_low # np.array([-1.0 * action_bounds])
+    action_clip_high = action_high # np.array([action_bounds])
     
     # state bounds and offset
-    state_bounds_np = np.array([0.9, 0.07])
+    state_high = np.array([5.0, 5.0, 5.0, 5.0])
+    state_low = np.array([0.0, 0.0, -5.0, -5.0])
+    state_bounds_np = (state_high - state_low) / 2
     state_bounds = torch.FloatTensor(state_bounds_np.reshape(1, -1)).to(device)
-    state_offset =  np.array([-0.3, 0.0])
+    state_offset = (state_high + state_low) / 2
     state_offset = torch.FloatTensor(state_offset.reshape(1, -1)).to(device)
-    state_clip_low = np.array([-1.2, -0.07])
-    state_clip_high = np.array([0.6, 0.07])
+    state_clip_low = state_low # np.array([-1.2, -0.07])
+    state_clip_high = state_high # np.array([0.6, 0.07])
     
     # exploration noise std for primitive action and subgoals
-    exploration_action_noise = np.array([0.1])        
-    exploration_state_noise = np.array([0.02, 0.01]) 
+    exploration_action_noise = np.array([0.1] * env.action_space.shape[0])
+    exploration_state_noise = np.array([0.01] * env.observation_space.shape[0])
     
-    goal_state = np.array([0.48, 0.04])        # final goal state to be achived
-    threshold = np.array([0.01, 0.02])         # threshold value to check if goal state is achieved
-    
+    goal_state = np.array([0.48, 0.04, 0.0, 0.0])        # final goal state to be achived
+    threshold = np.array([0.01, 0.02, 0.1, 0.1])         # threshold value to check if goal state is achieved
+
     # HAC parameters:
     k_level = 2                 # num of levels in hierarchy
-    H = 20                      # time horizon to achieve subgoal
+    H = 100                      # time horizon to achieve subgoal
     lamda = 0.3                 # subgoal testing parameter
     
     # DDPG parameters:
@@ -85,6 +91,8 @@ def train():
         agent.timestep = 0
         
         state = env.reset()
+        goal_state = env.unwrapped.get_obs()['desired_goal']
+        goal_state = np.append(goal_state, [0.0, 0.0])
         # collecting experience in environment
         last_state, done = agent.run_HAC(env, k_level-1, state, goal_state, False)
         

@@ -1,10 +1,12 @@
-import gym
-from gym import spaces
-from gym.utils import seeding
+from typing import Optional
+
+import gymnasium
+from gymnasium import spaces
+from gymnasium.utils import seeding
 import numpy as np
 from os import path
 
-class PendulumEnv(gym.Env):
+class PendulumEnv(gymnasium.Env):
     metadata = {
         'render.modes' : ['human', 'rgb_array'],
         'video.frames_per_second' : 30
@@ -48,12 +50,13 @@ class PendulumEnv(gym.Env):
  #       return self._get_obs(), -costs, False, {}
         return self.state, -costs, False, {}    #####
 
-    def reset(self):
+    def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):
+        if seed is not None:
+            self.seed(seed)
         high = np.array([np.pi, 1])
         self.state = self.np_random.uniform(low=-high, high=high)
         self.last_u = None
- #       return self._get_obs()
-        return self.state   #####
+        return self.state
 
     def _get_obs(self):
         theta, thetadot = self.state

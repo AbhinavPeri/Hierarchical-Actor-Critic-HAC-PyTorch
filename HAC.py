@@ -1,3 +1,5 @@
+import os
+
 import torch
 import numpy as np
 from DDPG import DDPG
@@ -8,7 +10,16 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 class HAC:
     def __init__(self, k_level, H, state_dim, action_dim, render, threshold, 
                  action_bounds, action_offset, state_bounds, state_offset, lr):
-        
+
+        self.exploration_state_noise = None
+        self.exploration_action_noise = None
+        self.state_clip_high = None
+        self.state_clip_low = None
+        self.action_clip_high = None
+        self.action_clip_low = None
+        self.gamma = None
+        self.lamda = None
+
         # adding lowest level
         self.HAC = [DDPG(state_dim, action_dim, action_bounds, action_offset, lr, H)]
         self.replay_buffer = [ReplayBuffer()]
@@ -105,12 +116,12 @@ class HAC:
                 
                 if self.render:
                     
-                    # env.render() ##########
+                    env.render() ##########
                     
-                    if self.k_level == 2:
-                        env.unwrapped.render_goal(self.goals[0], self.goals[1])
-                    elif self.k_level == 3:
-                        env.unwrapped.render_goal_2(self.goals[0], self.goals[1], self.goals[2])
+                    # if self.k_level == 2:
+                    #     env.unwrapped.render_goal(self.goals[0], self.goals[1])
+                    # elif self.k_level == 3:
+                    #     env.unwrapped.render_goal_2(self.goals[0], self.goals[1], self.goals[2])
                     
                     
                 # this is for logging
@@ -157,6 +168,8 @@ class HAC:
     
     
     def save(self, directory, name):
+        if not os.path.exists(directory):
+            os.makedirs(directory)
         for i in range(self.k_level):
             self.HAC[i].save(directory, name+'_level_{}'.format(i))
     

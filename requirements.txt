@@ -1,4 +1,5 @@
-gym
 torch
 pyglet
-six
+six~=1.16.0
+numpy~=1.24.4
+gymnasium~=1.0.0

@@ -15,12 +15,16 @@ permalink: https://perma.cc/6Z2N-PFWC
 """
 
 import math
+from typing import Tuple
 
 import numpy as np
 
-import gym
-from gym import spaces
-from gym.utils import seeding
+import gymnasium as gym
+from gymnasium import spaces
+from gymnasium.core import ObsType
+from gymnasium.utils import seeding
+from typing_extensions import Optional
+
 
 class Continuous_MountainCarEnv(gym.Env):
     metadata = {
@@ -29,6 +33,7 @@ class Continuous_MountainCarEnv(gym.Env):
     }
 
     def __init__(self):
+        self.state = None
         self.min_action = -1.0
         self.max_action = 1.0
         self.min_position = -1.2
@@ -78,7 +83,9 @@ class Continuous_MountainCarEnv(gym.Env):
         self.state = np.array([position, velocity])
         return self.state, reward, done, {}
 
-    def reset(self):
+    def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None) -> Tuple[ObsType, dict]:
+        if seed is not None:
+            self.seed(seed)
         self.state = np.array([self.np_random.uniform(low=-0.6, high=-0.4), 0])
         return np.array(self.state)
 
