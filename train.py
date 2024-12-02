@@ -11,7 +11,7 @@ def train():
     #################### Hyperparameters ####################
     env_name = "PointMaze-h-v3"
     save_episode = 10               # keep saving every n episodes
-    max_episodes = 1000             # max num of training episodes
+    max_episodes = 2000             # max num of training episodes - 1000 is also not bad, testing with more training to see if there is an actual performance benefit here
     random_seed = 0
     render = False
     
@@ -36,8 +36,8 @@ def train():
     action_clip_high = action_high # np.array([action_bounds])
     
     # state bounds and offset
-    state_high = np.array([5.0, 5.0, 5.0, 5.0])
-    state_low = np.array([0.0, 0.0, -5.0, -5.0])
+    state_high = np.array([1.5, 1.5, 5.0, 5.0])
+    state_low = np.array([-1.5, -1.5, -5.0, -5.0])
     state_bounds_np = (state_high - state_low) / 2
     state_bounds = torch.FloatTensor(state_bounds_np.reshape(1, -1)).to(device)
     state_offset = (state_high + state_low) / 2
@@ -54,8 +54,8 @@ def train():
 
     # HAC parameters:
     k_level = 2                 # num of levels in hierarchy
-    H = 100                      # time horizon to achieve subgoal
-    lamda = 0.3                 # subgoal testing parameter
+    H = 14                      # time horizon to achieve subgoal
+    lamda = 1                 # subgoal testing parameter
     
     # DDPG parameters:
     gamma = 0.95                # discount factor for future rewards
@@ -110,8 +110,7 @@ def train():
         
         if i_episode % save_episode == 0:
             agent.save(directory, filename)
-        
-        print("Episode: {}\t Reward: {}".format(i_episode, agent.reward))
+            print("Saved Episode: {}\t Reward: {}".format(i_episode, agent.reward))
         
     
 if __name__ == '__main__':

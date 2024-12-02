@@ -81,12 +81,12 @@ class HAC:
             if i_level > 0:
                 # add noise or take random action if not subgoal testing
                 if not is_subgoal_test:
-                    if np.random.random_sample() > 0.2:
+                    if np.random.random_sample() > 0.4:
                       action = action + np.random.normal(0, self.exploration_state_noise)
                       action = action.clip(self.state_clip_low, self.state_clip_high)
                     else:
                       action = np.random.uniform(self.state_clip_low, self.state_clip_high)
-                
+                # print(action)
                 # Determine whether to test subgoal (action)
                 if np.random.random_sample() < self.lamda:
                     is_next_subgoal_test = True

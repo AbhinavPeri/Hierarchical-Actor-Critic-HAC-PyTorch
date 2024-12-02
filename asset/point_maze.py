@@ -8,7 +8,7 @@ from gymnasium.core import RenderFrame
 class PointMazeEnv(gym.Env):
     def __init__(self):
         super(PointMazeEnv, self).__init__()
-        self.env = gym.make("PointMaze_UMaze-v3", render_mode="rgb_array")
+        self.env = gym.make("PointMaze_UMaze-v3", render_mode="human")
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space['observation']
         self.cur_obs = None

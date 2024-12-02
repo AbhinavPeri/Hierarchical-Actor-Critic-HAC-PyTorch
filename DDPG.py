@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import numpy as np
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -10,6 +11,8 @@ class Actor(nn.Module):
         # actor
         self.actor = nn.Sequential(
                         nn.Linear(state_dim + state_dim, 64),
+                        nn.ReLU(),
+                        nn.Linear(64, 64),
                         nn.ReLU(),
                         nn.Linear(64, 64),
                         nn.ReLU(),
@@ -32,6 +35,8 @@ class Critic(nn.Module):
                         nn.ReLU(),
                         nn.Linear(64, 64),
                         nn.ReLU(),
+                        nn.Linear(64, 64),
+                        nn.ReLU(),
                         nn.Linear(64, 1),
                         nn.Sigmoid()
                         )
@@ -51,44 +56,67 @@ class DDPG:
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=lr)
         
         self.mseLoss = torch.nn.MSELoss()
+
+
+    def normalize_state(self, state, state_low=None, state_high=None, state_offset=None):
+        if state_low is None:
+            state_low = np.array([-1.5, 0, 0, 0]) if isinstance(state, np.ndarray) else torch.tensor([-1.5, 0, 0, 0])
+        if state_high is None:
+            state_high = np.array([1.5, 1.5, 1, 1]) if isinstance(state, np.ndarray) else torch.tensor([1.5, 1.5, 1, 1])
+        if state_offset is None:
+            state_offset = np.array([0, 0, 0, 0]) if isinstance(state, np.ndarray) else torch.tensor([0, 0, 0, 0])
+        
+        if isinstance(state, np.ndarray):
+            state_low = np.asarray(state_low, dtype=state.dtype)
+            state_high = np.asarray(state_high, dtype=state.dtype)
+            state_offset = np.asarray(state_offset, dtype=state.dtype)
+            return (state + state_offset) / (state_high - state_low)
+        
+        elif isinstance(state, torch.Tensor):
+            state_low = state_low.to(dtype=state.dtype, device=state.device)
+            state_high = state_high.to(dtype=state.dtype, device=state.device)
+            state_offset = state_offset.to(dtype=state.dtype, device=state.device)
+            return (state + state_offset) / (state_high - state_low)
+        
+        else:
+            raise TypeError(f"Unsupported type for state. Must be either np.ndarray or torch.Tensor. Type received is {type(state)}.")
+
+
     
     def select_action(self, state, goal):
-        state = torch.FloatTensor(state.reshape(1, -1)).to(device)
-        goal = torch.FloatTensor(goal.reshape(1, -1)).to(device)
+        state = torch.FloatTensor(self.normalize_state(state.reshape(1, -1))).to(device)
+        goal = torch.FloatTensor(self.normalize_state(goal.reshape(1, -1))).to(device)
         return self.actor(state, goal).detach().cpu().data.numpy().flatten()
     
     def update(self, buffer, n_iter, batch_size):
-        
         for i in range(n_iter):
-            # Sample a batch of transitions from replay buffer:
             state, action, reward, next_state, goal, gamma, done = buffer.sample(batch_size)
+
+            # Normalize states and goals
+            state = torch.FloatTensor(self.normalize_state(state)).to(device)
+            next_state = torch.FloatTensor(self.normalize_state(next_state)).to(device)
+            goal = torch.FloatTensor(self.normalize_state(goal)).to(device)
             
-            # convert np arrays into tensors
-            state = torch.FloatTensor(state).to(device)
             action = torch.FloatTensor(action).to(device)
-            reward = torch.FloatTensor(reward).reshape((batch_size,1)).to(device)
-            next_state = torch.FloatTensor(next_state).to(device)
-            goal = torch.FloatTensor(goal).to(device)
-            gamma = torch.FloatTensor(gamma).reshape((batch_size,1)).to(device)
-            done = torch.FloatTensor(done).reshape((batch_size,1)).to(device)
-            
-            # select next action
+            reward = torch.FloatTensor(reward).reshape((batch_size, 1)).to(device)
+            gamma = torch.FloatTensor(gamma).reshape((batch_size, 1)).to(device)
+            done = torch.FloatTensor(done).reshape((batch_size, 1)).to(device)
+
+            # Select next action
             next_action = self.actor(next_state, goal).detach()
-            
-            # Compute target Q-value:
+
+            # Compute target Q-value
             target_Q = self.critic(next_state, next_action, goal).detach()
-            target_Q = reward + ((1-done) * gamma * target_Q)
-            
-            # Optimize Critic:
+            target_Q = reward + ((1 - done) * gamma * target_Q)
+
+            # Optimize Critic
             critic_loss = self.mseLoss(self.critic(state, action, goal), target_Q)
             self.critic_optimizer.zero_grad()
             critic_loss.backward()
             self.critic_optimizer.step()
-            
-            # Compute actor loss:
+
+            # Compute Actor Loss
             actor_loss = -self.critic(state, self.actor(state, goal), goal).mean()
-            
-            # Optimize the actor
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
             self.actor_optimizer.step()

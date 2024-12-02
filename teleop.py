@@ -17,6 +17,10 @@ KEY_ACTION_MAP = {
 }
 
 def teleoperate_with_keys():
+    minX = float("inf")
+    maxX = float("-inf")
+    minY = float("inf")
+    maxY = float("-inf")
     #################### Hyperparameters ####################
     max_episodes = 1000  # Number of teleop episodes
     render = True
@@ -26,9 +30,9 @@ def teleoperate_with_keys():
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.shape[0]
 
-    k_level = 2
+    k_level = 3
     H = 100
-    threshold = np.array([0.1, 0.2, 1000, 1000])
+    threshold = np.array([0.5, 0.5, 1, 1])
     goal_state = np.array([0.48, 0.04, 0.0, 0.0])
 
     agent = HAC(k_level, H, state_dim, action_dim, render, threshold,
@@ -64,10 +68,17 @@ def teleoperate_with_keys():
 
             next_state, reward, done, info = env.step(action)
 
+            # Update minX, maxX, minY, maxY based on next_state
+            minX = min(minX, next_state[0])
+            maxX = max(maxX, next_state[0])
+            minY = min(minY, next_state[1])
+            maxY = max(maxY, next_state[1])
+
             pygame.display.flip()
 
             print(f"Action Taken: {action}")
             print(f"Next State: {next_state}, Reward: {reward}, Done: {done}")
+            print(f"Bounds - minX: {minX}, maxX: {maxX}, minY: {minY}, maxY: {maxY}")
 
             agent.replay_buffer[0].add((state, action, reward, next_state, goal_state, agent.gamma, float(done)))
 
